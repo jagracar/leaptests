@@ -11,53 +11,59 @@ import com.leapmotion.leap.Gesture.State;
 import saito.objloader.OBJModel;
 
 public class ProcessingTest extends PApplet {
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-    private OBJModel model;
-    private OBJModel herschel;
-    private OBJModel itokawa;
-    private Controller leap;
-    private int controlHandId;
-    private int lightHandId;
-    private Vector controPos;
-    private Vector lightPos;
-    private int lastCircleEventId;
-    private int lastEventTime;
+	private OBJModel model;
+	private OBJModel herschel;
+	private OBJModel itokawa;
+	private Controller leap;
+	private int controlHandId;
+	private int lightHandId;
+	private Vector controPos;
+	private Vector lightPos;
+	private int lastCircleEventId;
+	private int lastEventTime;
 
-    public void setup() {
-        size(800, 800, P3D);
-        fill(255);
-        noStroke();
+	public void setup() {
+		size(800, 800, P3D);
+		fill(255);
+		noStroke();
 
-        // Load the models
-        herschel = new OBJModel(this, "HerschelExport.obj", POLYGON);
-        herschel.disableTexture();
-        herschel.scale(0.1f);
+		// Load the models
+		herschel = new OBJModel(this, "HerschelExport.obj", POLYGON);
+		herschel.disableTexture();
+		herschel.scale(0.1f);
 
-        itokawa = new OBJModel(this, "itokawa99846.obj", TRIANGLES);
-        itokawa.disableTexture();
-        itokawa.disableMaterial();
-        itokawa.scale(1000f);
+		itokawa = new OBJModel(this, "itokawa99846.obj", TRIANGLES);
+		itokawa.disableTexture();
+		itokawa.disableMaterial();
+		itokawa.scale(1000f);
 
-        // Start with the Herschel model
-        model = herschel;
+		// Start with the Herschel model
+		model = herschel;
 
-        // Leap setup
-        leap = new Controller();
-        leap.enableGesture(Gesture.Type.TYPE_CIRCLE);
-        leap.enableGesture(Gesture.Type.TYPE_SWIPE);
-        leap.enableGesture(Gesture.Type.TYPE_KEY_TAP);
-        leap.enableGesture(Gesture.Type.TYPE_SCREEN_TAP);
-        controlHandId = -1;
-        lightHandId = -1;
-        controPos = new Vector();
-        lightPos = new Vector();
-        lastEventTime = 0;
-        lastCircleEventId = -1;
-    }
+		// Leap setup
+		leap = new Controller();
+		leap.enableGesture(Gesture.Type.TYPE_CIRCLE);
+		leap.enableGesture(Gesture.Type.TYPE_SWIPE);
+		leap.enableGesture(Gesture.Type.TYPE_KEY_TAP);
+		leap.enableGesture(Gesture.Type.TYPE_SCREEN_TAP);
+		controlHandId = -1;
+		lightHandId = -1;
+		controPos = new Vector();
+		lightPos = new Vector();
+		lastEventTime = 0;
+		lastCircleEventId = -1;
 
-    public void draw() {
+		if (leap.config().setFloat("Gesture.Circle.MinRadius", 10.0f)
+				&& leap.config().setFloat("Gesture.Circle.MinArc", TWO_PI)) {
+			leap.config().save();
+		}
+	}
+
+	public void draw() {
         background(0);
+        println(frameRate + " fps");
 
         // Get the gestures
         GestureList gestures = leap.frame().gestures();
@@ -69,7 +75,7 @@ public class ProcessingTest extends PApplet {
             case TYPE_CIRCLE:
                 CircleGesture circle = new CircleGesture(gesture);
 
-                if (circle.isValid() && (millis() - lastEventTime) > 3000 && circle.id() != lastCircleEventId && circle.radius() > 5) {
+                if (circle.isValid() && (millis() - lastEventTime) > 3000 && circle.id() != lastCircleEventId && circle.progress() > 1 && circle.radius() < 30) {
                     println("Circle gesture detected!! " + circle.id() + " " + (millis() - lastEventTime) + " " + circle.radius());
                     lastEventTime = millis();
                     lastCircleEventId = circle.id();
@@ -136,11 +142,11 @@ public class ProcessingTest extends PApplet {
         popMatrix();
     }
 
-    public void keyPressed() {
-        if (key == 'i') {
-            model = itokawa;
-        } else if (key == 'h') {
-            model = herschel;
-        }
-    }
+	public void keyPressed() {
+		if (key == 'i') {
+			model = itokawa;
+		} else if (key == 'h') {
+			model = herschel;
+		}
+	}
 }
