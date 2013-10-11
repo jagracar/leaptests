@@ -1,357 +1,100 @@
-import java.util.ArrayList;
-
 import processing.core.PApplet;
-import processing.core.PImage;
 import processing.core.PVector;
 import processing.data.Table;
 
 public class GcOrbits extends PApplet {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	BlackHole bh;
-	Star[] stars;
-	float dt = 3 * 3600;
-	float elapsedTime = 0;
-	int nSteps = 0;
-	float zoom = 3;
-	boolean drawTrails = false;
+    private BlackHole gcBH;
+    private Star[] gcStars;
+    private float timeStep = 3 * 3600;
+    private int nSteps = 50;
+    private boolean drawTrails = false;
+    private float zoom = 1;
 
-	public void setup() {
-		size(1000, 800, P3D);
+    public void setup() {
+        size(1000, 800, P3D);
 
-		// Set the galactic center position and mass
-		float scaling = 2.5e-10f;
-		bh = new BlackHole(new PVector(0, 0, 0), 4.3e6f * 1.989e30f
-				* 6.67384e-11f * 1e-9f * pow(scaling, 3));
+        // We will re-scale the spatial dimensions by the following factor
+        float scaling = 2.5e-10f;
 
-		// Create the stars
-		Table table = loadTable("sstars.csv", "header");
-		stars = new Star[table.getRowCount()];
+        // Set the galactic center black hole properties
+        PVector bhPos = new PVector(width / 2, height / 2, 0);
+        float bhMass = 4.3e6f * 1.989e30f * 6.67384e-11f * 1e-9f * pow(scaling, 3);
+        gcBH = new BlackHole(bhPos, bhMass, this);
 
-		for (int i = 0; i < stars.length; i++) {
-			stars[i] = new Star(new PVector(table.getFloat(i, "x") * scaling,
-					table.getFloat(i, "y") * scaling, table.getFloat(i, "z")
-							* scaling), new PVector(table.getFloat(i, "vx")
-					* scaling, table.getFloat(i, "vy") * scaling,
-					table.getFloat(i, "vz") * scaling), bh);
+        // Set the galactic center star properties
+        Table table = loadTable("sstars.csv", "header");
+        gcStars = new Star[table.getRowCount()];
 
-		}
-	}
+        for (int i = 0; i < gcStars.length; i++) {
+            PVector starPos = new PVector(table.getFloat(i, "x"), table.getFloat(i, "y"), table.getFloat(i, "z"));
+            PVector starVel = new PVector(table.getFloat(i, "vx"), table.getFloat(i, "vy"), table.getFloat(i, "vz"));
+            starPos.mult(scaling);
+            starVel.mult(scaling);
 
-	public void draw() {
-		background(0);
-		lights();
+            gcStars[i] = new Star(starPos, starVel, gcBH, this);
+        }
+    }
 
-		// Update the star coordinates
-		for (int i = 0; i < stars.length; i++) {
-			// Speed up things a bit
-			for (int j = 0; j < 50; j++) {
-				stars[i].update(dt);
-			}
+    public void draw() {
+        background(0);
 
-			// Calculate the screen position
-			stars[i].calculateScreenPos();
+        // Update the stellar coordinates
+        for (int i = 0; i < gcStars.length; i++) {
+            gcStars[i].update(timeStep, nSteps, zoom);
+        }
 
-			if (nSteps > 5) {
-				stars[i].addTrailPoint();
-			}
-		}
+        // Trick to deal with transparent images:
+        // Order the stars according to their z position and draw first those
+        // that are more distant
+        boolean gcBHDrawn = false;
+        boolean[] gcStarDrawn = new boolean[gcStars.length];
+        int starCounter = 0;
 
-		if (nSteps > 5) {
-			nSteps = 0;
-		} else {
-			nSteps++;
-		}
+        while (starCounter < gcStars.length) {
+            // Select the most distant star in this iteration
+            float minZValue = Float.MAX_VALUE;
+            int starIndex = -1;
 
-		elapsedTime += 50 * dt;
-		println(frameRate + " elapsedTime =" + elapsedTime
-				/ (365.25 * 24 * 3600));
+            for (int i = 0; i < gcStars.length; i++) {
+                if (!gcStarDrawn[i] && gcStars[i].getScreenPos().z < minZValue) {
+                    minZValue = gcStars[i].getScreenPos().z;
+                    starIndex = i;
+                }
+            }
 
-		// Trick to deal with transparent images:
-		// Order the stars according to their z position and draw first those
-		// that
-		// are more distant
-		boolean[] alreadyDrawn = new boolean[stars.length];
-		int counter = 0;
-		boolean bhDrawn = false;
+            // Check if the black hole needs to be drawn
+            if (minZValue > gcBH.getPos().z && !gcBHDrawn) {
+                gcBH.draw(zoom);
+                gcBHDrawn = true;
+            }
 
-		while (counter < stars.length) {
-			float minZValue = Float.MAX_VALUE;
-			int starIndex = -1;
+            // Draw the star
+            gcStars[starIndex].draw(zoom);
+            gcStarDrawn[starIndex] = true;
+            starCounter++;
+        }
 
-			// Select the most distant star in this iteration
-			for (int i = 0; i < stars.length; i++) {
-				if (!alreadyDrawn[i]) {
-					PVector screenPos = stars[i].getScreenPos();
+        // Draw the stellar trails
+        if (drawTrails) {
+            hint(DISABLE_DEPTH_TEST);
 
-					if (screenPos.z < minZValue) {
-						minZValue = screenPos.z;
-						starIndex = i;
-					}
-				}
-			}
+            for (int i = 0; i < gcStars.length; i++) {
+                gcStars[i].drawTrail(zoom);
+            }
 
-			if (minZValue > 0 && !bhDrawn) {
-				bh.draw();
-				bhDrawn = true;
-			} else {
-				// Draw the star
-				stars[starIndex].draw();
-				alreadyDrawn[starIndex] = true;
-				counter++;
-			}
-		}
+            hint(ENABLE_DEPTH_TEST);
+        }
+    }
 
-		if (drawTrails) {
-			hint(DISABLE_DEPTH_TEST);
-			for (int i = 0; i < stars.length; i++) {
-				stars[i].drawTrail();
-			}
-			hint(ENABLE_DEPTH_TEST);
-		}
-	}
-
-	public void mousePressed() {
-		if (mouseButton == LEFT) {
-			zoom *= 1.2;
-		} else if (mouseButton == RIGHT) {
-			zoom /= 1.2;
-		} else if (mouseButton == CENTER) {
-			drawTrails = !drawTrails;
-		}
-	}
-
-	public class BlackHole {
-		private PVector pos;
-		private float mass;
-		private int radius;
-		private PImage img;
-
-		public BlackHole(PVector pos, float mass) {
-			this.pos = pos.get();
-			this.mass = mass;
-
-			// Create the image that will be used to draw the black hole
-			radius = 5;
-			img = createImage(3 * radius, 3 * radius, ARGB);
-
-			img.loadPixels();
-			for (int y = 0; y < img.height; y++) {
-				for (int x = 0; x < img.width; x++) {
-					float relDistSq = (sq(x - img.width / 2) + sq(y
-							- img.height / 2))
-							/ sq(radius);
-					img.pixels[x + y * img.width] = color(0,
-							max(0, min(255, 255 * (1.3f - sqrt(relDistSq)))));
-				}
-			}
-			img.updatePixels();
-		}
-
-		void draw() {
-			pushMatrix();
-			imageMode(CENTER);
-			translate(width / 2, height / 2, 0);
-			scale(zoom);
-			// ellipse(0, 0, 10, 10);
-			image(img, 0, 0);
-			popMatrix();
-		}
-
-		PVector getPos() {
-			return pos.get();
-		}
-
-		float getMass() {
-			return mass;
-		}
-	}
-
-	public class Star {
-		private PVector pos;
-		private PVector vel;
-		private BlackHole bh;
-		private PVector acc;
-		private PVector screenPos;
-		private float radius;
-		private PImage img;
-		private PImage flaresImg;
-		private float seed;
-		private ArrayList<PVector> trail;
-
-		public Star(PVector pos, PVector vel, BlackHole bh) {
-			this.pos = pos.get();
-			this.vel = vel.get();
-			this.bh = bh;
-
-			// Calculate the acceleration vector
-			PVector r = PVector.sub(this.pos, this.bh.getPos());
-			float r3 = r.mag() * r.magSq();
-			acc = PVector.mult(r, -bh.getMass() / r3);
-
-			// Calculate the current position of the star in the screen
-			screenPos = new PVector(0, 0, 0);
-			calculateScreenPos();
-
-			// Create the image that will be used to draw the star
-			radius = 6;
-			img = createImage(6 * ((int) radius), 6 * ((int) radius), ARGB);
-
-			img.loadPixels();
-			for (int y = 0; y < img.height; y++) {
-				for (int x = 0; x < img.width; x++) {
-					float relDistSq = (sq(x - img.width / 2) + sq(y
-							- img.height / 2))
-							/ sq(radius);
-					float grey = max(0, 255 * (1 - relDistSq));
-					float alpha = max(0, min(255, 255 * (1.2f - relDistSq)));
-					img.pixels[x + y * img.width] = color(grey, alpha);
-				}
-			}
-			img.updatePixels();
-
-			// Create the flares image and the seed for the flares
-			flaresImg = createImage(img.width, img.height, ARGB);
-			seed = random(1000);
-
-			// The trail
-			trail = new ArrayList<PVector>(1000);
-		}
-
-		public void update(float dt) {
-			pos.add(PVector.mult(vel, dt));
-			pos.add(PVector.mult(acc, dt * dt / 2));
-
-			vel.add(PVector.mult(acc, dt / 2));
-
-			PVector r = PVector.sub(pos, bh.getPos());
-			float r3 = r.mag() * r.magSq();
-			acc = PVector.mult(r, -bh.getMass() / r3);
-
-			vel.add(PVector.mult(acc, dt / 2));
-		}
-
-		public void calculateScreenPos() {
-			PVector bhPos = bh.getPos();
-
-			pushMatrix();
-			translate(width / 2, height / 2, 0);
-			scale(zoom);
-			translate(bhPos.x, bhPos.y, bhPos.z);
-			rotateX(TWO_PI * mouseY / height);
-			rotateY(TWO_PI * mouseX / width);
-			translate(pos.x - bhPos.x, pos.y - bhPos.y, pos.z - bhPos.y);
-
-			// Save the screen position
-			screenPos = new PVector(modelX(0, 0, 0), modelY(0, 0, 0), modelZ(0,
-					0, 0));
-			popMatrix();
-		}
-
-		void draw() {
-			pushMatrix();
-			imageMode(CENTER);
-			translate(screenPos.x, screenPos.y, screenPos.z);
-			scale(zoom);
-			image(img, 0, 0);
-			updateFlareImage();
-			image(flaresImg, 0, 0);
-			noStroke();
-			// fill(255);
-			// sphere(0.8*radius);
-			// fill(255, 100);
-			// sphere(0.9*radius);
-			// sphere(1.0*radius);
-			// sphere(1.1*radius);
-			popMatrix();
-		}
-
-		void updateFlareImage() {
-			// Prepare the flares image for the next iteration
-			seed += 0.1;
-
-			flaresImg.loadPixels();
-			for (int y = 0; y < flaresImg.height; y++) {
-				for (int x = 0; x < flaresImg.width; x++) {
-					float dist = sqrt(sq(x - flaresImg.width / 2)
-							+ sq(y - flaresImg.height / 2));
-
-					if (dist < 0.9 * radius) {
-						float ang = (atan2((float) (y - flaresImg.height / 2),
-								(float) (x - flaresImg.width / 2)) + noise(x))
-								/ TWO_PI;
-						flaresImg.pixels[x + y * flaresImg.width] = color(255 * noise(
-								0.1f * (dist - seed), 3 * ang));
-					}
-				}
-			}
-
-			// Make the changes in a temporal array
-			int[] tempFlaresImg = new int[flaresImg.pixels.length];
-
-			for (int y = 2; y < flaresImg.height - 2; y++) {
-				for (int x = 2; x < flaresImg.width - 2; x++) {
-					float distSq = sq(x - flaresImg.width / 2)
-							+ sq(y - flaresImg.height / 2);
-					float greySum = 0;
-					float counter = 0;
-
-					for (int i = -2; i < 3; i++) {
-						for (int j = -2; j < 3; j++) {
-							greySum += red(flaresImg.pixels[x + i + (y + j)
-									* flaresImg.width]);
-							counter++;
-						}
-					}
-
-					float newGrey = greySum / counter;
-					tempFlaresImg[x + y * flaresImg.width] = color(newGrey,
-							newGrey);
-				}
-			}
-
-			// Replace the flares image pixels with the temporal array
-			flaresImg.pixels = tempFlaresImg;
-			flaresImg.updatePixels();
-		}
-
-		public void addTrailPoint() {
-			trail.add(pos.get());
-
-			if (trail.size() > 1000) {
-				trail.remove(0);
-			}
-		}
-
-		public void drawTrail() {
-			if (trail.size() > 4) {
-				PVector bhPos = bh.getPos();
-
-				pushMatrix();
-				pushStyle();
-				stroke(color(100, 100, 255));
-				strokeWeight(1);
-				translate(width / 2, height / 2, 0);
-				translate(bhPos.x, bhPos.y, bhPos.z);
-				rotateX(TWO_PI * mouseY / height);
-				rotateY(TWO_PI * mouseX / width);
-				scale(zoom);
-
-				for (int i = 0; i < trail.size() - 4; i++) {
-					PVector trailPos = trail.get(i);
-					PVector trailPos2 = trail.get(i + 1);
-					line(trailPos.x - bhPos.x, trailPos.y - bhPos.y, trailPos.z
-							- bhPos.y, trailPos2.x - bhPos.x, trailPos2.y
-							- bhPos.y, trailPos2.z - bhPos.y);
-				}
-				popStyle();
-				popMatrix();
-			}
-		}
-
-		public PVector getScreenPos() {
-			return screenPos;
-		}
-	}
-
+    public void mousePressed() {
+        if (mouseButton == LEFT) {
+            zoom *= 1.2;
+        } else if (mouseButton == RIGHT) {
+            zoom /= 1.2;
+        } else if (mouseButton == CENTER) {
+            drawTrails = !drawTrails;
+        }
+    }
 }
