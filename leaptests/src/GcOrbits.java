@@ -5,11 +5,10 @@ import com.leapmotion.leap.Gesture.Type;
 import com.leapmotion.leap.GestureList;
 import com.leapmotion.leap.Hand;
 import com.leapmotion.leap.Vector;
-import processing.core.PApplet;
 import processing.core.PVector;
 import processing.data.Table;
 
-public class GcOrbits extends PApplet {
+public class GcOrbits extends OrientedApplet {
 	private static final long serialVersionUID = 1L;
 
 	private Controller leap;
@@ -18,6 +17,7 @@ public class GcOrbits extends PApplet {
 	public Vector controlHandPos;
 	private int lastCircleEventId;
 	private int lastCircleEventTime;
+
 	private BlackHole gcBH;
 	private Star[] gcStars;
 	private float timeStep = 3 * 3600;
@@ -28,7 +28,7 @@ public class GcOrbits extends PApplet {
 	private float zoom = 1;
 
 	public void setup() {
-		size(1000, 800, P3D);
+		size(1900, 1000, P3D);
 
 		// Leap motion setup
 		leap = new Controller();
@@ -40,7 +40,7 @@ public class GcOrbits extends PApplet {
 		lastCircleEventTime = 0;
 
 		// We will re-scale the spatial dimensions by the following factor
-		float scaling = 2.5e-10f;
+		float scaling = 6e-10f;
 
 		// Set the galactic center black hole properties
 		PVector bhPos = new PVector(width / 2, height / 2, 0);
@@ -155,6 +155,11 @@ public class GcOrbits extends PApplet {
 
 			hint(ENABLE_DEPTH_TEST);
 		}
+		
+
+		hint(DISABLE_DEPTH_TEST);
+		text("Hola "+ frameRate, 100, 100);
+		hint(ENABLE_DEPTH_TEST);
 	}
 
 	public float getXAng() {

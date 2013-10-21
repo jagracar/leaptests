@@ -8,7 +8,7 @@ public class Star implements PConstants {
 	private PVector pos;
 	private PVector vel;
 	private BlackHole bh;
-	private GcOrbits parent;
+	private OrientedApplet parent;
 	private PVector screenPos;
 	private float radius;
 	private PImage img;
@@ -17,7 +17,7 @@ public class Star implements PConstants {
 	private ArrayList<PVector> trail;
 	private int trailCounter;
 
-	public Star(PVector pos, PVector vel, BlackHole bh, GcOrbits parent) {
+	public Star(PVector pos, PVector vel, BlackHole bh, OrientedApplet parent) {
 		this.pos = pos.get();
 		this.vel = vel.get();
 		this.bh = bh;
@@ -27,7 +27,7 @@ public class Star implements PConstants {
 		calculateScreenPos();
 
 		// Create the image that will be used to draw the star
-		radius = 6;
+		radius = 10;
 		img = this.parent.createImage((int) (6 * radius), (int) (6 * radius),
 				ARGB);
 
@@ -184,6 +184,10 @@ public class Star implements PConstants {
 			parent.popStyle();
 			parent.popMatrix();
 		}
+	}
+
+	public void clearTrail() {
+		trail.clear();
 	}
 
 	public PVector getScreenPos() {

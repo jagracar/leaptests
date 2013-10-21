@@ -6,11 +6,11 @@ import processing.core.PVector;
 public class BlackHole implements PConstants {
 	private PVector pos;
 	private float mass;
-	private GcOrbits parent;
+	private OrientedApplet parent;
 	private float radius;
 	private PImage img;
 
-	public BlackHole(PVector pos, float mass, GcOrbits parent) {
+	public BlackHole(PVector pos, float mass, OrientedApplet parent) {
 		this.pos = pos.get();
 		this.mass = mass;
 		this.parent = parent;
